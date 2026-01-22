@@ -50,8 +50,7 @@ export async function getCurrentUserId(): Promise<string | null> {
  * @throws Error if no active session
  */
 export function getSessionUserId(): string {
-    const session = supabase.auth.getSession();
-    // Note: This is async, so we need a different approach for sync access
+    // Note: supabase.auth.getSession() is async, so we need a different approach for sync access
     // This helper is mainly for documentation - use the service layer instead
     throw new Error('Use getCurrentUserId() or access user from auth context');
 }

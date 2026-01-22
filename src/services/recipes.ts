@@ -291,7 +291,7 @@ export async function updateRecipe(
         if (updates.prep_time_minutes !== undefined) recipeUpdate.prep_time_minutes = updates.prep_time_minutes;
         if (updates.source_url !== undefined) recipeUpdate.source_url = updates.source_url;
 
-        const { data: recipe, error: recipeError } = await supabase
+        const { error: recipeError } = await supabase
             .from('recipes')
             .update(recipeUpdate)
             .eq('id', id)
