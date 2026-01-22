@@ -233,6 +233,101 @@ export interface Database {
           }
         ];
       };
+      inventory: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          quantity: number;
+          unit: string | null;
+          category: InventoryCategory;
+          aisle: string | null;
+          min_quantity: number;
+          expiry_date: string | null;
+          location: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          quantity?: number;
+          unit?: string | null;
+          category?: InventoryCategory;
+          aisle?: string | null;
+          min_quantity?: number;
+          expiry_date?: string | null;
+          location?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          quantity?: number;
+          unit?: string | null;
+          category?: InventoryCategory;
+          aisle?: string | null;
+          min_quantity?: number;
+          expiry_date?: string | null;
+          location?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'inventory_user_id_fkey';
+            columns: ['user_id'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      inventory_transactions: {
+        Row: {
+          id: string;
+          inventory_id: string;
+          type: InventoryTransactionType;
+          quantity: number;
+          quantity_before: number;
+          quantity_after: number;
+          planned_meal_id: string | null;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          inventory_id: string;
+          type: InventoryTransactionType;
+          quantity: number;
+          quantity_before: number;
+          quantity_after: number;
+          planned_meal_id?: string | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          inventory_id?: string;
+          type?: InventoryTransactionType;
+          quantity?: number;
+          quantity_before?: number;
+          quantity_after?: number;
+          planned_meal_id?: string | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'inventory_transactions_inventory_id_fkey';
+            columns: ['inventory_id'];
+            referencedRelation: 'inventory';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -243,11 +338,37 @@ export interface Database {
         };
         Returns: string;
       };
+      deduct_meal_ingredients: {
+        Args: {
+          p_planned_meal_id: string;
+        };
+        Returns: unknown;
+      };
+      generate_smart_shopping_list: {
+        Args: {
+          p_start_date: string;
+          p_end_date: string;
+        };
+        Returns: Array<{
+          name: string;
+          needed_quantity: number;
+          in_stock: number;
+          to_buy: number;
+          unit: string | null;
+          aisle: string | null;
+        }>;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
 }
+
+// Inventory category type
+export type InventoryCategory = 'food' | 'cleaning' | 'hygiene' | 'pet' | 'other';
+
+// Inventory transaction type
+export type InventoryTransactionType = 'add' | 'remove' | 'adjust' | 'meal_used' | 'expired';
 
 // ============================================================================
 // TYPE ALIASES
@@ -324,3 +445,61 @@ export interface PlannedMealWithRecipe extends PlannedMeal {
 export interface ShoppingListWithItems extends ShoppingList {
   items: ShoppingListItem[];
 }
+
+// ============================================================================
+// INVENTORY TYPES
+// ============================================================================
+
+/** Full inventory item row from database */
+export type InventoryItem = Database['public']['Tables']['inventory']['Row'];
+
+/** Inventory item data for insert operations */
+export type InventoryItemInsert = Database['public']['Tables']['inventory']['Insert'];
+
+/** Inventory item data for update operations */
+export type InventoryItemUpdate = Database['public']['Tables']['inventory']['Update'];
+
+/** Full inventory transaction row from database */
+export type InventoryTransaction = Database['public']['Tables']['inventory_transactions']['Row'];
+
+/** Form input for creating/editing inventory items */
+export interface InventoryInput {
+  name: string;
+  quantity: number;
+  unit?: string | null;
+  category?: InventoryCategory;
+  aisle?: string | null;
+  min_quantity?: number;
+  expiry_date?: string | null;
+  location?: string | null;
+}
+
+/** Smart shopping list item from RPC function */
+export interface SmartShoppingItem {
+  name: string;
+  needed_quantity: number;
+  in_stock: number;
+  to_buy: number;
+  unit: string | null;
+  aisle: string | null;
+}
+
+/** Category labels in French */
+export const INVENTORY_CATEGORY_LABELS: Record<InventoryCategory, string> = {
+  food: '🍎 Aliments',
+  cleaning: '🧹 Ménager',
+  hygiene: '🧴 Hygiène',
+  pet: '🐕 Animaux',
+  other: '📦 Autre',
+};
+
+/** Location labels in French */
+export const INVENTORY_LOCATION_LABELS: Record<string, string> = {
+  frigo: '❄️ Réfrigérateur',
+  congelateur: '🧊 Congélateur',
+  placard: '🚪 Placard',
+  salle_de_bain: '🚿 Salle de bain',
+  garage: '🏠 Garage',
+  other: '📍 Autre',
+};
+

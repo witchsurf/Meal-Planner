@@ -21,17 +21,22 @@ export function Layout() {
                 <ul className="nav-links">
                     <li>
                         <NavLink to="/recipes" className={({ isActive }) => isActive ? 'active' : ''}>
-                            📚 Recipes
+                            📚 Recettes
                         </NavLink>
                     </li>
                     <li>
                         <NavLink to="/planner" className={({ isActive }) => isActive ? 'active' : ''}>
-                            📅 Weekly Planner
+                            📅 Planning
+                        </NavLink>
+                    </li>
+                    <li>
+                        <NavLink to="/inventory" className={({ isActive }) => isActive ? 'active' : ''}>
+                            📦 Stock
                         </NavLink>
                     </li>
                     <li>
                         <NavLink to="/shopping" className={({ isActive }) => isActive ? 'active' : ''}>
-                            🛒 Shopping List
+                            🛒 Courses
                         </NavLink>
                     </li>
                 </ul>
@@ -41,7 +46,7 @@ export function Layout() {
                         <>
                             <p className="user-email">{user.email}</p>
                             <button onClick={signOut} className="btn-signout">
-                                Sign Out
+                                Déconnexion
                             </button>
                         </>
                     )}

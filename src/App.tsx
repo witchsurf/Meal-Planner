@@ -13,6 +13,7 @@ import {
   RecipeLibraryPage,
   WeeklyPlannerPage,
   ShoppingListPage,
+  InventoryPage,
 } from './pages';
 
 import './App.css';
@@ -42,6 +43,7 @@ function App() {
             <Route path="recipes" element={<RecipeLibraryPage />} />
             <Route path="planner" element={<WeeklyPlannerPage />} />
             <Route path="shopping" element={<ShoppingListPage />} />
+            <Route path="inventory" element={<InventoryPage />} />
           </Route>
 
           {/* Catch-all redirect */}
