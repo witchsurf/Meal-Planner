@@ -365,7 +365,7 @@ export interface Database {
 }
 
 // Inventory category type
-export type InventoryCategory = 'food' | 'cleaning' | 'hygiene' | 'pet' | 'other';
+export type InventoryCategory = 'pantry' | 'freezer' | 'cleaning' | 'toiletry';
 
 // Inventory transaction type
 export type InventoryTransactionType = 'add' | 'remove' | 'adjust' | 'meal_used' | 'expired';
@@ -486,11 +486,10 @@ export interface SmartShoppingItem {
 
 /** Category labels in French */
 export const INVENTORY_CATEGORY_LABELS: Record<InventoryCategory, string> = {
-  food: '🍎 Aliments',
-  cleaning: '🧹 Ménager',
-  hygiene: '🧴 Hygiène',
-  pet: '🐕 Animaux',
-  other: '📦 Autre',
+  pantry: '🥫 Épicerie',
+  freezer: '❄️ Congélateur',
+  cleaning: '🧹 Entretien',
+  toiletry: '🧴 Hygiène',
 };
 
 /** Location labels in French */

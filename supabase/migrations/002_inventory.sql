@@ -18,9 +18,9 @@ CREATE TABLE IF NOT EXISTS inventory (
   unit TEXT, -- e.g., 'kg', 'g', 'L', 'pièces'
   
   -- Categorization
-  category TEXT NOT NULL DEFAULT 'food' 
-    CHECK (category IN ('food', 'cleaning', 'hygiene', 'pet', 'other')),
-  aisle TEXT, -- For shopping list grouping
+  category TEXT NOT NULL DEFAULT 'pantry' 
+    CHECK (category IN ('pantry', 'freezer', 'cleaning', 'toiletry')),
+  aisle TEXT, -- For shopping list grouping (stores full category path like 'pantry:cereals')
   
   -- Stock management
   min_quantity NUMERIC DEFAULT 0 CHECK (min_quantity >= 0), -- Alert threshold

@@ -2102,18 +2102,21 @@ button {
 }
 
 .preset-item {
-  padding: 4px 10px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  padding: 6px 12px;
+  background: white;
+  border: 1px solid #d1476d;
   border-radius: var(--radius-sm);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  color: #831843;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .preset-item:hover {
-  background: var(--color-primary-light);
-  border-color: var(--color-primary);
+  background: #fce7f3;
+  border-color: #be185d;
+  color: #831843;
 }
 
 .preset-item.selected {
