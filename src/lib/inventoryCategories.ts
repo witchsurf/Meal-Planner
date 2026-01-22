@@ -82,10 +82,13 @@ export function getAllCategories(): Array<{ value: string; label: string; mainCa
 // Get preset items for a category
 export function getPresetItems(categoryValue: string): string[] {
     const [main, sub] = categoryValue.split(':');
-    const mainCat = INVENTORY_CATEGORIES[main as InventoryMainCategory];
+    if (!main || !sub) return [];
+
+    const mainCat = INVENTORY_CATEGORIES[main as keyof typeof INVENTORY_CATEGORIES];
     if (!mainCat) return [];
 
-    const subCat = mainCat.subcategories[sub as keyof typeof mainCat.subcategories];
+    const subcategories = mainCat.subcategories as Record<string, { label: string; items: readonly string[] }>;
+    const subCat = subcategories[sub];
     if (!subCat) return [];
 
     return [...subCat.items];
@@ -99,10 +102,15 @@ export function getMainCategoryLabel(mainCategory: InventoryMainCategory): strin
 // Get category label from value
 export function getCategoryLabel(categoryValue: string): string {
     const [main, sub] = categoryValue.split(':');
-    const mainCat = INVENTORY_CATEGORIES[main as InventoryMainCategory];
+    if (!main) return categoryValue;
+
+    const mainCat = INVENTORY_CATEGORIES[main as keyof typeof INVENTORY_CATEGORIES];
     if (!mainCat) return categoryValue;
 
-    const subCat = mainCat.subcategories[sub as keyof typeof mainCat.subcategories];
+    if (!sub) return mainCat.label;
+
+    const subcategories = mainCat.subcategories as Record<string, { label: string; items: readonly string[] }>;
+    const subCat = subcategories[sub];
     if (!subCat) return mainCat.label;
 
     return subCat.label;

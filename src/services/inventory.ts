@@ -59,11 +59,7 @@ export async function listInventory(
             query = query.eq('category', filters.category);
         }
 
-        // Filter low stock
-        if (filters.lowStock) {
-            query = query.lte('quantity', supabase.rpc('get_min_quantity'));
-            // Alternative: filter client-side
-        }
+        // Note: Low stock is filtered client-side since we compare quantity to min_quantity
 
         // Filter expiring soon (within 7 days)
         if (filters.expiringSoon) {
@@ -139,14 +135,20 @@ export async function addToInventory(input: InventoryInput): Promise<InventoryIt
             throw new Error('User must be authenticated');
         }
 
-        // Check if item already exists
-        const { data: existing } = await supabase
+        // Check if item already exists (handle unit being null or undefined)
+        let existingQuery = supabase
             .from('inventory')
             .select('id, quantity')
             .eq('user_id', userId)
-            .ilike('name', input.name)
-            .eq('unit', input.unit ?? null)
-            .single();
+            .ilike('name', input.name);
+
+        if (input.unit) {
+            existingQuery = existingQuery.eq('unit', input.unit);
+        } else {
+            existingQuery = existingQuery.is('unit', null);
+        }
+
+        const { data: existing } = await existingQuery.single();
 
         if (existing) {
             // Update existing item quantity
