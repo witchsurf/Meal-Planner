@@ -16,9 +16,11 @@ import { StockOutModal } from './StockOutModal';
 interface InventoryListProps {
     onAddClick?: () => void;
     onEditClick?: (item: InventoryItem) => void;
+    activeCategory?: string;
+    onCategoryChange?: (category: string) => void;
 }
 
-const MAIN_CATEGORIES: (InventoryMainCategory | 'all' | 'low')[] = ['all', 'pantry', 'freezer', 'cleaning', 'toiletry', 'low'];
+const MAIN_CATEGORIES: (InventoryMainCategory | 'all' | 'low' | 'expiring')[] = ['all', 'pantry', 'freezer', 'cleaning', 'toiletry', 'low', 'expiring'];
 
 const CATEGORY_LABELS: Record<string, string> = {
     all: '📦 Tout',
@@ -27,14 +29,30 @@ const CATEGORY_LABELS: Record<string, string> = {
     cleaning: '🧼 Entretien',
     toiletry: '🪥 Hygiène',
     low: '⚠️ Stock bas',
+    expiring: '⏰ Expire bientôt',
 };
 
-export function InventoryList({ onAddClick, onEditClick }: InventoryListProps) {
+export function InventoryList({
+    onAddClick,
+    onEditClick,
+    activeCategory: externalCategory,
+    onCategoryChange
+}: InventoryListProps) {
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedCategory, setSelectedCategory] = useState<string>('all');
+    const [internalCategory, setInternalCategory] = useState<string>('all');
     const [search, setSearch] = useState('');
     const [stockOutItem, setStockOutItem] = useState<InventoryItem | null>(null);
+
+    const selectedCategory = externalCategory ?? internalCategory;
+
+    const handleCategoryChange = (cat: string) => {
+        if (onCategoryChange) {
+            onCategoryChange(cat);
+        } else {
+            setInternalCategory(cat);
+        }
+    };
 
     useEffect(() => {
         loadItems();
@@ -45,7 +63,7 @@ export function InventoryList({ onAddClick, onEditClick }: InventoryListProps) {
 
         // Build filters
         let categoryFilter: string | undefined;
-        if (selectedCategory !== 'all' && selectedCategory !== 'low') {
+        if (selectedCategory !== 'all' && selectedCategory !== 'low' && selectedCategory !== 'expiring') {
             categoryFilter = selectedCategory;
         }
 
@@ -53,6 +71,7 @@ export function InventoryList({ onAddClick, onEditClick }: InventoryListProps) {
             category: categoryFilter as any,
             search: search.trim() || undefined,
             lowStock: selectedCategory === 'low',
+            expiringSoon: selectedCategory === 'expiring',
         });
 
         setItems(data);
@@ -108,7 +127,7 @@ export function InventoryList({ onAddClick, onEditClick }: InventoryListProps) {
                         <button
                             key={cat}
                             className={`category-tab ${selectedCategory === cat ? 'active' : ''} ${cat === 'low' && lowStockCount > 0 ? 'has-alert' : ''}`}
-                            onClick={() => setSelectedCategory(cat)}
+                            onClick={() => handleCategoryChange(cat)}
                         >
                             {CATEGORY_LABELS[cat]}
                             {cat === 'low' && lowStockCount > 0 && (

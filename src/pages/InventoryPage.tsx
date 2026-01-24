@@ -14,6 +14,7 @@ export function InventoryPage() {
     const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [category, setCategory] = useState<string>('all');
 
     const handleAdd = () => {
         setEditingItem(null);
@@ -55,19 +56,19 @@ export function InventoryPage() {
 
             {/* Stats summary */}
             <div className="inventory-summary">
-                <div className="summary-card">
+                <div className="summary-card" onClick={() => setCategory('pantry')} style={{ cursor: 'pointer' }}>
                     <span className="summary-icon">🍎</span>
                     <span className="summary-label">Aliments</span>
                 </div>
-                <div className="summary-card">
+                <div className="summary-card" onClick={() => setCategory('cleaning')} style={{ cursor: 'pointer' }}>
                     <span className="summary-icon">🧹</span>
                     <span className="summary-label">Ménager</span>
                 </div>
-                <div className="summary-card">
+                <div className="summary-card" onClick={() => setCategory('low')} style={{ cursor: 'pointer' }}>
                     <span className="summary-icon">⚠️</span>
                     <span className="summary-label">Stock bas</span>
                 </div>
-                <div className="summary-card">
+                <div className="summary-card" onClick={() => setCategory('expiring')} style={{ cursor: 'pointer' }}>
                     <span className="summary-icon">⏰</span>
                     <span className="summary-label">Expire bientôt</span>
                 </div>
@@ -78,6 +79,8 @@ export function InventoryPage() {
                 key={refreshKey}
                 onAddClick={handleAdd}
                 onEditClick={handleEdit}
+                activeCategory={category}
+                onCategoryChange={setCategory}
             />
 
             {/* Add/Edit form modal */}
