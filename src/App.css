@@ -2150,3 +2150,127 @@ button {
   font-size: 0.875rem;
   margin-top: var(--space-sm);
 }
+/* ============================================================================
+   STOCK OUT STYLES
+   ============================================================================ */
+
+.btn-stockout-item {
+  background: transparent;
+  border: none;
+  padding: var(--space-xs);
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 1.1rem;
+  transition: all 0.15s;
+  margin-right: var(--space-xs);
+}
+
+.inventory-item:hover .btn-stockout-item {
+  opacity: 1;
+}
+
+.btn-stockout-item:hover {
+  transform: scale(1.1);
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+  padding: var(--space-md);
+}
+
+/* Base Modal */
+.modal {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 500px;
+  border: 1px solid var(--color-border);
+  animation: modal-pop 0.2s ease-out;
+}
+
+@keyframes modal-pop {
+  0% { transform: scale(0.95); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h2 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--space-xs);
+}
+
+.modal-body {
+  padding: var(--space-lg);
+}
+
+.modal-footer {
+  padding: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-md);
+  background: var(--color-bg);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+/* Stock Out Specifics */
+.stock-out-item {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stock-out-item .item-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.quantity-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.quantity-input input {
+  width: 80px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.quantity-input .unit {
+  color: var(--color-text-secondary);
+  min-width: 40px;
+}
