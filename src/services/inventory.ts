@@ -175,7 +175,7 @@ export async function addToInventory(input: InventoryInput): Promise<InventoryIt
             name: input.name,
             quantity: input.quantity,
             unit: input.unit ?? null,
-            category: input.category ?? 'food',
+            category: input.category ?? 'pantry',
             aisle: input.aisle ?? null,
             min_quantity: input.min_quantity ?? 0,
             expiry_date: input.expiry_date ?? null,

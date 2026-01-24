@@ -11,6 +11,7 @@ import {
     type InventoryMainCategory,
 } from '../../lib/inventoryCategories';
 import { listInventory, deleteInventoryItem, updateInventoryItem } from '../../services/inventory';
+import { StockOutModal } from './StockOutModal';
 
 interface InventoryListProps {
     onAddClick?: () => void;
@@ -33,6 +34,7 @@ export function InventoryList({ onAddClick, onEditClick }: InventoryListProps) {
     const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
     const [search, setSearch] = useState('');
+    const [stockOutItem, setStockOutItem] = useState<InventoryItem | null>(null);
 
     useEffect(() => {
         loadItems();
@@ -174,6 +176,13 @@ export function InventoryList({ onAddClick, onEditClick }: InventoryListProps) {
                                             </div>
 
                                             <button
+                                                className="btn-stockout-item"
+                                                onClick={(e) => { e.stopPropagation(); setStockOutItem(item); }}
+                                                title="Sortie de stock"
+                                            >
+                                                📤
+                                            </button>
+                                            <button
                                                 className="btn-delete-item"
                                                 onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
                                                 title="Supprimer"
@@ -186,6 +195,15 @@ export function InventoryList({ onAddClick, onEditClick }: InventoryListProps) {
                             </div>
                         ))}
                 </div>
+            )}
+
+            {/* Stock Out Modal */}
+            {stockOutItem && (
+                <StockOutModal
+                    item={stockOutItem}
+                    onClose={() => setStockOutItem(null)}
+                    onSuccess={loadItems}
+                />
             )}
         </div>
     );

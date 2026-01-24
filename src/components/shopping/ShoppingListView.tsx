@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import {
     toggleShoppingListItemChecked,
     groupItemsByAisle,
+    isLowStockItem,
 } from '../../services/shopping';
 import type { ShoppingListWithItems, ShoppingListItem } from '../../lib/database.types';
 
@@ -93,7 +94,14 @@ export function ShoppingListView({ list, onItemToggle }: ShoppingListViewProps) 
                                                 disabled={loading === item.id}
                                             />
                                             <span className="item-info">
-                                                <span className="item-name">{item.name}</span>
+                                                <span className="item-name">
+                                                    {item.name}
+                                                    {isLowStockItem(item) && (
+                                                        <span className="badge-lowstock" title="Stock bas">
+                                                            ⚠️ Réappro.
+                                                        </span>
+                                                    )}
+                                                </span>
                                                 {item.quantity && (
                                                     <span className="item-quantity">
                                                         {item.quantity} {item.unit ?? ''}

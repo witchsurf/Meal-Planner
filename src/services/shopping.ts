@@ -10,6 +10,7 @@
  */
 
 import { supabase, getCurrentUserId } from '../lib/supabase';
+import { getLowStockItems } from './inventory';
 import type {
     ShoppingList,
     ShoppingListItem,
@@ -37,6 +38,7 @@ interface AggregatedItem {
     quantity: number;
     unit: string | null;
     aisle: string | null;
+    isLowStock?: boolean; // Flag for items from low-stock inventory
 }
 
 // ============================================================================
@@ -143,6 +145,36 @@ export async function generateShoppingList(
         }
 
         // -------------------------------------------------------------------------
+        // Step 2.5: Add low-stock inventory items to shopping list
+        // -------------------------------------------------------------------------
+        const { items: lowStockItems } = await getLowStockItems();
+
+        for (const item of lowStockItems) {
+            // Calculate how much to buy to reach min_quantity
+            const toBuy = Math.max(0, item.min_quantity - item.quantity);
+            if (toBuy <= 0) continue;
+
+            const normalizedName = normalizeIngredientName(item.name);
+            const normalizedUnit = normalizeUnit(item.unit);
+            const key = `${normalizedName}|${normalizedUnit}`;
+
+            const existing = aggregated.get(key);
+            if (existing) {
+                // If already in list from recipes, add the low-stock quantity
+                existing.quantity += toBuy;
+                existing.isLowStock = true;
+            } else {
+                aggregated.set(key, {
+                    name: capitalizeFirst(normalizedName),
+                    quantity: toBuy,
+                    unit: normalizedUnit || null,
+                    aisle: item.aisle,
+                    isLowStock: true,
+                });
+            }
+        }
+
+        // -------------------------------------------------------------------------
         // Step 3: Create shopping list
         // -------------------------------------------------------------------------
         const { data: list, error: listError } = await supabase
@@ -170,7 +202,8 @@ export async function generateShoppingList(
                 name: item.name,
                 quantity: item.quantity,
                 unit: item.unit,
-                aisle: item.aisle,
+                // Prefix aisle with 'lowstock:' for low-stock items (UI detection)
+                aisle: item.isLowStock ? `lowstock:${item.aisle || 'other'}` : item.aisle,
                 checked: false,
             }));
 
@@ -371,6 +404,7 @@ export async function deleteShoppingList(
 
 /**
  * Group shopping list items by aisle for display.
+ * Handles lowstock: prefix for items that need restocking.
  * 
  * @param items - Shopping list items
  * @returns Map of aisle name to items
@@ -381,13 +415,24 @@ export function groupItemsByAisle(
     const grouped = new Map<string, ShoppingListItem[]>();
 
     for (const item of items) {
-        const aisle = translateAisle(item.aisle) ?? 'Autre';
+        // Strip lowstock: prefix for grouping, but keep it in the item for UI detection
+        const rawAisle = item.aisle?.startsWith('lowstock:')
+            ? item.aisle.replace('lowstock:', '')
+            : item.aisle;
+        const aisle = translateAisle(rawAisle) ?? 'Autre';
         const existing = grouped.get(aisle) ?? [];
         existing.push(item);
         grouped.set(aisle, existing);
     }
 
     return grouped;
+}
+
+/**
+ * Check if an item is marked as low-stock.
+ */
+export function isLowStockItem(item: ShoppingListItem): boolean {
+    return item.aisle?.startsWith('lowstock:') ?? false;
 }
 
 // ============================================================================
