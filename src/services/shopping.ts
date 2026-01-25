@@ -192,7 +192,13 @@ export async function generateShoppingList(
             // Calculate how much to buy to reach min_quantity
             // We use the remaining stock AFTER recipe deduction
             const currentStock = inventoryMap.get(key) ?? item.quantity;
-            const toBuy = Math.max(0, item.min_quantity - currentStock);
+            let toBuy = Math.max(0, item.min_quantity - currentStock);
+
+            // If we are at or below min_quantity, ensure we buy something
+            if (currentStock <= item.min_quantity && toBuy === 0) {
+                toBuy = 1; // Minimum replenishment to get back above threshold
+            }
+
             if (toBuy <= 0) continue;
 
             const existing = aggregated.get(key);
