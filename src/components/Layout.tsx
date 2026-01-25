@@ -15,7 +15,12 @@ export function Layout() {
             {/* Sidebar Navigation */}
             <nav className="sidebar">
                 <div className="sidebar-header">
-                    <h1>🍽️ Meal Planner</h1>
+                    <img
+                        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSFgwa2LDCSHruoAqzMuprzbc8sirba_1HSdA&s"
+                        alt="Meal Planner Logo"
+                        className="app-logo"
+                    />
+                    <h1>Meal Planner</h1>
                 </div>
 
                 <ul className="nav-links">

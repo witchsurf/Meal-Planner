@@ -120,13 +120,37 @@ button {
   padding: var(--space-lg);
 }
 
-.sidebar-header h1 {
-  font-size: 1.25rem;
+.sidebar-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
   margin-bottom: var(--space-xl);
+}
+
+.app-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-sm);
+  object-fit: cover;
+  box-shadow: var(--shadow-sm);
+}
+
+.login-logo {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto var(--space-md);
+  display: block;
+}
+
+.sidebar-header h1 {
+  font-size: 1.15rem;
   background: var(--gradient-header);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  font-weight: 700;
 }
 
 .nav-links {

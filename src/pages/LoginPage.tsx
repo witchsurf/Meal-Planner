@@ -58,7 +58,12 @@ export function LoginPage() {
     return (
         <div className="login-page">
             <div className="login-card">
-                <h1>🍽️ Meal Planner</h1>
+                <img
+                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSFgwa2LDCSHruoAqzMuprzbc8sirba_1HSdA&s"
+                    alt="Meal Planner Logo"
+                    className="app-logo login-logo"
+                />
+                <h1>Meal Planner</h1>
                 <h2>{mode === 'login' ? 'Sign In' : 'Create Account'}</h2>
 
                 {error && <div className="form-error">{error}</div>}
