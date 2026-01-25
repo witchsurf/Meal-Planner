@@ -35,8 +35,11 @@ export function RecipeSidebar() {
     const [search, setSearch] = useState('');
     const [cuisine, setCuisine] = useState('');
     const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 6;
 
     useEffect(() => {
+        setCurrentPage(1); // Reset to first page on search/filter change
         loadRecipes();
     }, [search, cuisine]);
 
@@ -86,13 +89,38 @@ export function RecipeSidebar() {
                 ) : recipes.length === 0 ? (
                     <p className="empty">Aucune recette trouvée</p>
                 ) : (
-                    recipes.map((recipe) => (
-                        <RecipeCard
-                            key={recipe.id}
-                            recipe={recipe}
-                            draggable
-                        />
-                    ))
+                    <>
+                        {recipes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((recipe) => (
+                            <RecipeCard
+                                key={recipe.id}
+                                recipe={recipe}
+                                draggable
+                            />
+                        ))}
+
+                        {/* Pagination controls */}
+                        {recipes.length > itemsPerPage && (
+                            <div className="sidebar-pagination">
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="btn-pagination"
+                                >
+                                    ←
+                                </button>
+                                <span className="page-info">
+                                    {currentPage} / {Math.ceil(recipes.length / itemsPerPage)}
+                                </span>
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(recipes.length / itemsPerPage), prev + 1))}
+                                    disabled={currentPage === Math.ceil(recipes.length / itemsPerPage)}
+                                    className="btn-pagination"
+                                >
+                                    →
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>
