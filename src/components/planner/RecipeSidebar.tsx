@@ -42,13 +42,9 @@ export function RecipeSidebar() {
 
     const loadRecipes = async () => {
         setLoading(true);
-        // Combine search with cuisine tag if selected
-        const searchQuery = cuisine
-            ? (search ? `${search} ${cuisine}` : cuisine)
-            : search;
 
         const { recipes: data } = await listRecipes({
-            search: searchQuery || undefined,
+            search: search || undefined,
             tags: cuisine ? [cuisine] : undefined,
         });
         setRecipes(data);

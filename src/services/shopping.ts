@@ -108,6 +108,21 @@ export async function generateShoppingList(
         }
 
         // -------------------------------------------------------------------------
+        // Step 1.5: Fetch current inventory for deduplication
+        // -------------------------------------------------------------------------
+        const { data: inventory } = await supabase
+            .from('inventory')
+            .select('name, quantity, unit');
+
+        const inventoryMap = new Map<string, number>();
+        for (const item of inventory ?? []) {
+            const normalized = normalizeIngredientName(item.name);
+            const unit = normalizeUnit(item.unit);
+            const key = `${normalized}|${unit}`;
+            inventoryMap.set(key, (inventoryMap.get(key) || 0) + (item.quantity || 0));
+        }
+
+        // -------------------------------------------------------------------------
         // Step 2: Aggregate ingredients with PROPORTIONAL calculation
         // -------------------------------------------------------------------------
         // Formula: ingredient_qty * (planned_servings / recipe_base_servings)
@@ -129,17 +144,37 @@ export async function generateShoppingList(
                 const key = `${normalizedName}|${normalizedUnit}`;
 
                 const existing = aggregated.get(key);
-                const newQuantity = (ingredient.quantity ?? 1) * multiplier;
+                const neededQuantity = (ingredient.quantity ?? 1) * multiplier;
 
                 if (existing) {
-                    existing.quantity += newQuantity;
+                    existing.quantity += neededQuantity;
                 } else {
                     aggregated.set(key, {
                         name: capitalizeFirst(normalizedName),
-                        quantity: newQuantity,
+                        quantity: neededQuantity,
                         unit: normalizedUnit || null,
                         aisle: ingredient.aisle,
                     });
+                }
+            }
+        }
+
+        // -------------------------------------------------------------------------
+        // Step 2.1: Deduct current inventory from needed ingredients
+        // -------------------------------------------------------------------------
+        for (const [key, item] of aggregated.entries()) {
+            const inStock = inventoryMap.get(key) || 0;
+            if (inStock > 0) {
+                // Subtract stock from needed quantity, but not below 0
+                const remainingNeeded = Math.max(0, item.quantity - inStock);
+
+                // Update inventory map to reflect we've "used" this stock
+                inventoryMap.set(key, Math.max(0, inStock - item.quantity));
+
+                if (remainingNeeded === 0) {
+                    aggregated.delete(key);
+                } else {
+                    item.quantity = remainingNeeded;
                 }
             }
         }
@@ -150,13 +185,15 @@ export async function generateShoppingList(
         const { items: lowStockItems } = await getLowStockItems();
 
         for (const item of lowStockItems) {
-            // Calculate how much to buy to reach min_quantity
-            const toBuy = Math.max(0, item.min_quantity - item.quantity);
-            if (toBuy <= 0) continue;
-
             const normalizedName = normalizeIngredientName(item.name);
             const normalizedUnit = normalizeUnit(item.unit);
             const key = `${normalizedName}|${normalizedUnit}`;
+
+            // Calculate how much to buy to reach min_quantity
+            // We use the remaining stock AFTER recipe deduction
+            const currentStock = inventoryMap.get(key) ?? item.quantity;
+            const toBuy = Math.max(0, item.min_quantity - currentStock);
+            if (toBuy <= 0) continue;
 
             const existing = aggregated.get(key);
             if (existing) {
