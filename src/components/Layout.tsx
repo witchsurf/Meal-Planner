@@ -44,6 +44,11 @@ export function Layout() {
                             🛒 Courses
                         </NavLink>
                     </li>
+                    <li>
+                        <NavLink to="/restocking" className={({ isActive }) => isActive ? 'active' : ''}>
+                            📥 Restockage
+                        </NavLink>
+                    </li>
                 </ul>
 
                 <div className="sidebar-footer">

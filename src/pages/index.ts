@@ -7,4 +7,5 @@ export { RecipeLibraryPage } from './RecipeLibraryPage';
 export { WeeklyPlannerPage } from './WeeklyPlannerPage';
 export { ShoppingListPage } from './ShoppingListPage';
 export { InventoryPage } from './InventoryPage';
+export { RestockingPage } from './RestockingPage';
 

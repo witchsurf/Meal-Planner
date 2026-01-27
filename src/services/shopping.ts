@@ -32,13 +32,30 @@ export interface ShoppingListsResult {
     error: Error | null;
 }
 
+/** Individual quantity with unit for an ingredient */
+interface QuantityUnit {
+    quantity: number;
+    unit: string;
+}
+
 /** Aggregated item for shopping list generation */
 interface AggregatedItem {
     name: string;
-    quantity: number;
-    unit: string | null;
+    quantities: QuantityUnit[]; // Support multiple quantities with different units
     aisle: string | null;
     isLowStock?: boolean; // Flag for items from low-stock inventory
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Format quantity to avoid ugly decimals like 1.3333333
+ */
+function formatQuantity(qty: number): string {
+    // Round to 2 decimal places and remove trailing zeros
+    return qty.toFixed(2).replace(/\.?0+$/, '');
 }
 
 // ============================================================================
@@ -114,19 +131,23 @@ export async function generateShoppingList(
             .from('inventory')
             .select('name, quantity, unit');
 
-        const inventoryMap = new Map<string, number>();
+        const inventoryMap = new Map<string, Map<string, number>>();
         for (const item of inventory ?? []) {
             const normalized = normalizeIngredientName(item.name);
             const unit = normalizeUnit(item.unit);
-            const key = `${normalized}|${unit}`;
-            inventoryMap.set(key, (inventoryMap.get(key) || 0) + (item.quantity || 0));
+
+            if (!inventoryMap.has(normalized)) {
+                inventoryMap.set(normalized, new Map());
+            }
+            const unitMap = inventoryMap.get(normalized)!;
+            unitMap.set(unit, (unitMap.get(unit) || 0) + (item.quantity || 0));
         }
 
         // -------------------------------------------------------------------------
         // Step 2: Aggregate ingredients with PROPORTIONAL calculation
         // -------------------------------------------------------------------------
         // Formula: ingredient_qty * (planned_servings / recipe_base_servings)
-        // Normalization: merge same ingredients with different names/units
+        // Normalization: merge same ingredients by NAME only (ignore unit to avoid duplicates)
         const aggregated = new Map<string, AggregatedItem>();
 
         for (const meal of meals ?? []) {
@@ -138,21 +159,25 @@ export async function generateShoppingList(
             const multiplier = plannedServings / baseServings;
 
             for (const ingredient of recipe.ingredients) {
-                // Normalize ingredient name and unit for better aggregation
+                // Normalize ingredient name only (not unit) to group all "miel" together
                 const normalizedName = normalizeIngredientName(ingredient.name);
-                const normalizedUnit = normalizeUnit(ingredient.unit);
-                const key = `${normalizedName}|${normalizedUnit}`;
+                const normalizedUnit = normalizeUnit(ingredient.unit) || '';
 
-                const existing = aggregated.get(key);
+                const existing = aggregated.get(normalizedName);
                 const neededQuantity = (ingredient.quantity ?? 1) * multiplier;
 
                 if (existing) {
-                    existing.quantity += neededQuantity;
+                    // Check if we already have this unit
+                    const existingQty = existing.quantities.find(q => q.unit === normalizedUnit);
+                    if (existingQty) {
+                        existingQty.quantity += neededQuantity;
+                    } else {
+                        existing.quantities.push({ quantity: neededQuantity, unit: normalizedUnit });
+                    }
                 } else {
-                    aggregated.set(key, {
+                    aggregated.set(normalizedName, {
                         name: capitalizeFirst(normalizedName),
-                        quantity: neededQuantity,
-                        unit: normalizedUnit || null,
+                        quantities: [{ quantity: neededQuantity, unit: normalizedUnit }],
                         aisle: ingredient.aisle,
                     });
                 }
@@ -162,20 +187,31 @@ export async function generateShoppingList(
         // -------------------------------------------------------------------------
         // Step 2.1: Deduct current inventory from needed ingredients
         // -------------------------------------------------------------------------
-        for (const [key, item] of aggregated.entries()) {
-            const inStock = inventoryMap.get(key) || 0;
-            if (inStock > 0) {
-                // Subtract stock from needed quantity, but not below 0
-                const remainingNeeded = Math.max(0, item.quantity - inStock);
+        for (const [name, item] of aggregated.entries()) {
+            const stockByUnit = inventoryMap.get(name);
+            if (!stockByUnit) continue;
 
-                // Update inventory map to reflect we've "used" this stock
-                inventoryMap.set(key, Math.max(0, inStock - item.quantity));
+            // Deduct stock for each quantity/unit combination
+            const remainingQuantities: QuantityUnit[] = [];
 
-                if (remainingNeeded === 0) {
-                    aggregated.delete(key);
+            for (const qu of item.quantities) {
+                const inStock = stockByUnit.get(qu.unit) || 0;
+                if (inStock > 0) {
+                    const remainingNeeded = Math.max(0, qu.quantity - inStock);
+                    stockByUnit.set(qu.unit, Math.max(0, inStock - qu.quantity));
+
+                    if (remainingNeeded > 0) {
+                        remainingQuantities.push({ quantity: remainingNeeded, unit: qu.unit });
+                    }
                 } else {
-                    item.quantity = remainingNeeded;
+                    remainingQuantities.push(qu);
                 }
+            }
+
+            if (remainingQuantities.length === 0) {
+                aggregated.delete(name);
+            } else {
+                item.quantities = remainingQuantities;
             }
         }
 
@@ -186,12 +222,11 @@ export async function generateShoppingList(
 
         for (const item of lowStockItems) {
             const normalizedName = normalizeIngredientName(item.name);
-            const normalizedUnit = normalizeUnit(item.unit);
-            const key = `${normalizedName}|${normalizedUnit}`;
+            const normalizedUnit = normalizeUnit(item.unit) || '';
 
             // Calculate how much to buy to reach min_quantity
-            // We use the remaining stock AFTER recipe deduction
-            const currentStock = inventoryMap.get(key) ?? item.quantity;
+            const stockByUnit = inventoryMap.get(normalizedName);
+            const currentStock = stockByUnit?.get(normalizedUnit) ?? item.quantity;
             let toBuy = Math.max(0, item.min_quantity - currentStock);
 
             // If we are at or below min_quantity, ensure we buy something
@@ -201,16 +236,20 @@ export async function generateShoppingList(
 
             if (toBuy <= 0) continue;
 
-            const existing = aggregated.get(key);
+            const existing = aggregated.get(normalizedName);
             if (existing) {
                 // If already in list from recipes, add the low-stock quantity
-                existing.quantity += toBuy;
+                const existingQty = existing.quantities.find(q => q.unit === normalizedUnit);
+                if (existingQty) {
+                    existingQty.quantity += toBuy;
+                } else {
+                    existing.quantities.push({ quantity: toBuy, unit: normalizedUnit });
+                }
                 existing.isLowStock = true;
             } else {
-                aggregated.set(key, {
+                aggregated.set(normalizedName, {
                     name: capitalizeFirst(normalizedName),
-                    quantity: toBuy,
-                    unit: normalizedUnit || null,
+                    quantities: [{ quantity: toBuy, unit: normalizedUnit }],
                     aisle: item.aisle,
                     isLowStock: true,
                 });
@@ -240,15 +279,32 @@ export async function generateShoppingList(
         const items: ShoppingListItem[] = [];
 
         if (aggregated.size > 0) {
-            const itemInserts = Array.from(aggregated.values()).map((item) => ({
-                shopping_list_id: list.id,
-                name: item.name,
-                quantity: item.quantity,
-                unit: item.unit,
-                // Prefix aisle with 'lowstock:' for low-stock items (UI detection)
-                aisle: item.isLowStock ? `lowstock:${item.aisle || 'other'}` : item.aisle,
-                checked: false,
-            }));
+            const itemInserts = Array.from(aggregated.values()).map((item) => {
+                // Format quantities: if multiple units, combine them
+                let quantityDisplay: number;
+                let unitDisplay: string | null;
+
+                if (item.quantities.length === 1) {
+                    quantityDisplay = item.quantities[0].quantity;
+                    unitDisplay = item.quantities[0].unit || null;
+                } else {
+                    // Multiple units: format as "qty1 unit1 + qty2 unit2 + ..."
+                    quantityDisplay = 0; // Set to 0 when showing combined string
+                    unitDisplay = item.quantities
+                        .map(q => `${formatQuantity(q.quantity)} ${q.unit}`.trim())
+                        .join(' + ');
+                }
+
+                return {
+                    shopping_list_id: list.id,
+                    name: item.name,
+                    quantity: quantityDisplay,
+                    unit: unitDisplay,
+                    // Prefix aisle with 'lowstock:' for low-stock items (UI detection)
+                    aisle: item.isLowStock ? `lowstock:${item.aisle || 'other'}` : item.aisle,
+                    checked: false,
+                };
+            });
 
             const { data: insertedItems, error: itemsError } = await supabase
                 .from('shopping_list_items')

@@ -14,6 +14,7 @@ import {
   WeeklyPlannerPage,
   ShoppingListPage,
   InventoryPage,
+  RestockingPage,
 } from './pages';
 
 import './App.css';
@@ -44,6 +45,7 @@ function App() {
             <Route path="planner" element={<WeeklyPlannerPage />} />
             <Route path="shopping" element={<ShoppingListPage />} />
             <Route path="inventory" element={<InventoryPage />} />
+            <Route path="restocking" element={<RestockingPage />} />
           </Route>
 
           {/* Catch-all redirect */}
