@@ -112,8 +112,9 @@ export async function generateShoppingList(
             .select(`
         id,
         servings,
-        recipe:recipes(
+        recipe:recipes!planned_meals_recipe_id_fkey(
           id,
+          base_servings,
           ingredients(*)
         )
       `)
@@ -122,6 +123,11 @@ export async function generateShoppingList(
 
         if (mealsError) {
             throw new Error(`Failed to fetch planned meals: ${mealsError.message}`);
+        }
+
+        console.log('[Shopping] Planned meals fetched:', meals?.length || 0);
+        if (meals && meals.length > 0) {
+            console.log('[Shopping] Sample meal:', JSON.stringify(meals[0], null, 2));
         }
 
         // -------------------------------------------------------------------------
@@ -152,7 +158,16 @@ export async function generateShoppingList(
 
         for (const meal of meals ?? []) {
             const recipe = meal.recipe as { id: string; base_servings?: number; ingredients: Ingredient[] } | null;
-            if (!recipe || !recipe.ingredients) continue;
+            if (!recipe) {
+                console.warn('[Shopping] Meal without recipe:', meal);
+                continue;
+            }
+            if (!recipe.ingredients) {
+                console.warn('[Shopping] Recipe without ingredients:', recipe.id);
+                continue;
+            }
+
+            console.log(`[Shopping] Processing recipe with ${recipe.ingredients.length} ingredients`);
 
             const plannedServings = meal.servings || 1;
             const baseServings = recipe.base_servings || 4;
@@ -184,6 +199,8 @@ export async function generateShoppingList(
             }
         }
 
+        console.log('[Shopping] Aggregated items before deduction:', aggregated.size);
+
         // -------------------------------------------------------------------------
         // Step 2.1: Deduct current inventory from needed ingredients
         // -------------------------------------------------------------------------
@@ -214,6 +231,8 @@ export async function generateShoppingList(
                 item.quantities = remainingQuantities;
             }
         }
+
+        console.log('[Shopping] Aggregated items after inventory deduction:', aggregated.size);
 
         // -------------------------------------------------------------------------
         // Step 2.5: Add low-stock inventory items to shopping list
@@ -255,6 +274,9 @@ export async function generateShoppingList(
                 });
             }
         }
+
+        console.log('[Shopping] Final aggregated items (with low stock):', aggregated.size);
+        console.log('[Shopping] Low stock items added:', lowStockItems.length);
 
         // -------------------------------------------------------------------------
         // Step 3: Create shopping list

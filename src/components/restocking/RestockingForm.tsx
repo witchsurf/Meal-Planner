@@ -75,6 +75,8 @@ export function RestockingForm({ list, onSuccess }: RestockingFormProps) {
                 inventoryMap.set(key, item);
             });
 
+            const processedItems: string[] = [];
+
             // Process each checked item
             for (const quantityData of Object.values(quantities)) {
                 if (quantityData.actualQuantity <= 0) continue;
@@ -116,13 +118,24 @@ export function RestockingForm({ list, onSuccess }: RestockingFormProps) {
                         min_quantity: 0,
                     });
                 }
+
+                processedItems.push(quantityData.itemId);
             }
+
+            // Remove processed items from the quantities state
+            setQuantities(prev => {
+                const newQuantities = { ...prev };
+                processedItems.forEach(itemId => {
+                    delete newQuantities[itemId];
+                });
+                return newQuantities;
+            });
 
             setSuccess(true);
             setTimeout(() => {
                 setSuccess(false);
                 if (onSuccess) onSuccess();
-            }, 2000);
+            }, 3000);
 
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Une erreur est survenue');
@@ -131,20 +144,26 @@ export function RestockingForm({ list, onSuccess }: RestockingFormProps) {
         }
     };
 
-    const groupedItems = groupItemsByAisle(checkedItems);
-    const totalItems = checkedItems.length;
+    // Filter to only show items that haven't been processed yet
+    const activeItems = checkedItems.filter(item => quantities[item.id]);
+    const groupedItems = groupItemsByAisle(activeItems);
+    const totalItems = activeItems.length;
 
     if (totalItems === 0) {
         return (
-            <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+            <div className="bg-white rounded-lg shadow-sm p-8 md:p-12 text-center">
                 <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="mt-4 text-gray-600">
-                    Aucun produit coché dans cette liste de courses.
+                    {checkedItems.length === 0
+                        ? "Aucun produit coché dans cette liste de courses."
+                        : "Tous les produits ont été traités avec succès !"}
                 </p>
                 <p className="text-sm text-gray-500 mt-2">
-                    Cochez des produits dans votre liste de courses pour pouvoir les remettre en stock.
+                    {checkedItems.length === 0
+                        ? "Cochez des produits dans votre liste de courses pour pouvoir les remettre en stock."
+                        : "Vous pouvez retourner à la liste de courses ou sélectionner une autre liste."}
                 </p>
             </div>
         );
@@ -153,51 +172,68 @@ export function RestockingForm({ list, onSuccess }: RestockingFormProps) {
     return (
         <div className="bg-white rounded-lg shadow-sm">
             <form onSubmit={handleSubmit}>
-                <div className="p-6">
+                <div className="p-4 md:p-6">
                     {error && (
-                        <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
-                            <p className="text-red-800">{error}</p>
+                        <div className="mb-4 bg-red-50 border-l-4 border-red-500 rounded-lg p-4">
+                            <div className="flex items-center">
+                                <svg className="h-5 w-5 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                                <p className="text-red-800 font-medium">{error}</p>
+                            </div>
                         </div>
                     )}
 
                     {success && (
-                        <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-4">
-                            <p className="text-green-800">
-                                ✓ Inventaire mis à jour avec succès !
-                            </p>
+                        <div className="mb-4 bg-green-50 border-l-4 border-green-500 rounded-lg p-4">
+                            <div className="flex items-center">
+                                <svg className="h-5 w-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                <p className="text-green-800 font-medium">
+                                    Inventaire mis à jour avec succès !
+                                </p>
+                            </div>
                         </div>
                     )}
 
-                    <div className="space-y-6">
+                    <div className="space-y-4 md:space-y-6">
                         {Array.from(groupedItems.entries()).map(([aisle, items]) => (
-                            <div key={aisle} className="border-b border-gray-200 last:border-0 pb-6 last:pb-0">
-                                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
-                                    {aisle}
+                            <div key={aisle} className="border-b border-gray-200 last:border-0 pb-4 md:pb-6 last:pb-0">
+                                <h3 className="text-xs md:text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 md:mb-4 flex items-center">
+                                    <span className="bg-gray-100 px-3 py-1 rounded-full">{aisle}</span>
+                                    <span className="ml-2 text-xs text-gray-500">({items.length})</span>
                                 </h3>
-                                <div className="space-y-3">
+                                <div className="space-y-2 md:space-y-3">
                                     {items.map((item) => {
                                         const qData = quantities[item.id];
+                                        if (!qData) return null;
                                         return (
-                                            <div key={item.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                                                <div className="flex-1">
-                                                    <div className="font-medium text-gray-900">{item.name}</div>
-                                                    <div className="text-sm text-gray-500">
-                                                        Suggéré: {qData.suggestedQuantity} {qData.unit || ''}
+                                            <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 md:p-4 bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-100 hover:shadow-sm transition-shadow">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-medium text-gray-900 text-base md:text-lg truncate">{item.name}</div>
+                                                    <div className="text-xs md:text-sm text-gray-500 mt-1">
+                                                        💡 Suggéré: {qData.suggestedQuantity} {qData.unit || ''}
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.01"
-                                                        value={qData.actualQuantity}
-                                                        onChange={(e) => handleQuantityChange(item.id, e.target.value)}
-                                                        className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                                        disabled={loading}
-                                                    />
-                                                    <span className="text-sm text-gray-600 w-16">
-                                                        {qData.unit || ''}
-                                                    </span>
+                                                <div className="flex items-center gap-2 sm:gap-3">
+                                                    <label className="text-sm text-gray-600 hidden sm:block">Acheté:</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.01"
+                                                            value={qData.actualQuantity}
+                                                            onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                                                            onFocus={(e) => e.target.select()}
+                                                            placeholder="0"
+                                                            className="w-20 md:w-24 px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center font-semibold text-lg"
+                                                            disabled={loading}
+                                                        />
+                                                        <span className="text-sm md:text-base text-gray-700 font-medium min-w-[3rem] md:min-w-[4rem]">
+                                                            {qData.unit || 'unité'}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
@@ -208,16 +244,26 @@ export function RestockingForm({ list, onSuccess }: RestockingFormProps) {
                     </div>
                 </div>
 
-                <div className="bg-gray-50 px-6 py-4 rounded-b-lg flex items-center justify-between">
-                    <div className="text-sm text-gray-600">
-                        {totalItems} produit{totalItems !== 1 ? 's' : ''} à remettre en stock
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 md:px-6 py-4 rounded-b-lg flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t-2 border-gray-200">
+                    <div className="text-sm md:text-base text-gray-700 font-medium">
+                        📦 {totalItems} produit{totalItems !== 1 ? 's' : ''} à ajouter au stock
                     </div>
                     <button
                         type="submit"
                         disabled={loading}
-                        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+                        className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 active:translate-y-0"
                     >
-                        {loading ? 'Mise à jour...' : 'Mettre à jour l\'inventaire'}
+                        {loading ? (
+                            <span className="flex items-center justify-center">
+                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Mise à jour...
+                            </span>
+                        ) : (
+                            '✓ Mettre à jour l\'inventaire'
+                        )}
                     </button>
                 </div>
             </form>
