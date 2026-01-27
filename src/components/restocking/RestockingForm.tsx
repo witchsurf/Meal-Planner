@@ -27,7 +27,7 @@ interface QuantityInput {
 export function RestockingForm({ list, onSuccess }: RestockingFormProps) {
     const checkedItems = list.items.filter(item => item.checked);
 
-    // Initialize quantities from shopping list
+    // Initialize quantities from shopping list - START WITH EMPTY FIELDS
     const [quantities, setQuantities] = useState<Record<string, QuantityInput>>(() => {
         const initial: Record<string, QuantityInput> = {};
         checkedItems.forEach(item => {
@@ -35,7 +35,7 @@ export function RestockingForm({ list, onSuccess }: RestockingFormProps) {
                 itemId: item.id,
                 name: item.name,
                 suggestedQuantity: item.quantity || 0,
-                actualQuantity: item.quantity || 0,
+                actualQuantity: 0, // START EMPTY - user must fill in what they actually bought
                 unit: item.unit,
                 aisle: item.aisle,
             };
@@ -212,22 +212,22 @@ export function RestockingForm({ list, onSuccess }: RestockingFormProps) {
                                             <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 md:p-4 bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-100 hover:shadow-sm transition-shadow">
                                                 <div className="flex-1 min-w-0">
                                                     <div className="font-medium text-gray-900 text-base md:text-lg truncate">{item.name}</div>
-                                                    <div className="text-xs md:text-sm text-gray-500 mt-1">
-                                                        💡 Suggéré: {qData.suggestedQuantity} {qData.unit || ''}
+                                                    <div className="text-xs md:text-sm text-blue-600 mt-1 font-medium">
+                                                        💡 Liste de courses: {qData.suggestedQuantity} {qData.unit || 'unité'}
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2 sm:gap-3">
-                                                    <label className="text-sm text-gray-600 hidden sm:block">Acheté:</label>
+                                                    <label className="text-sm text-gray-700 font-semibold hidden sm:block">Acheté:</label>
                                                     <div className="flex items-center gap-2">
                                                         <input
                                                             type="number"
                                                             min="0"
                                                             step="0.01"
-                                                            value={qData.actualQuantity}
+                                                            value={qData.actualQuantity === 0 ? '' : qData.actualQuantity}
                                                             onChange={(e) => handleQuantityChange(item.id, e.target.value)}
                                                             onFocus={(e) => e.target.select()}
-                                                            placeholder="0"
-                                                            className="w-20 md:w-24 px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center font-semibold text-lg"
+                                                            placeholder="Quantité"
+                                                            className="w-20 md:w-24 px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center font-semibold text-lg placeholder:text-gray-400 placeholder:font-normal"
                                                             disabled={loading}
                                                         />
                                                         <span className="text-sm md:text-base text-gray-700 font-medium min-w-[3rem] md:min-w-[4rem]">
