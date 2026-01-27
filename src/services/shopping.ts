@@ -47,6 +47,144 @@ interface AggregatedItem {
 }
 
 // ============================================================================
+// UNIT CONVERSION
+// ============================================================================
+
+/**
+ * Convert quantity to a standard unit within the same measurement system
+ */
+function convertToStandardUnit(quantity: number, unit: string): { quantity: number; unit: string } {
+    const normalizedUnit = unit.toLowerCase().trim();
+
+    // Weight conversions -> convert to grams
+    if (normalizedUnit === 'kg') {
+        return { quantity: quantity * 1000, unit: 'g' };
+    }
+
+    // Volume conversions -> convert to ml
+    if (normalizedUnit === 'l' || normalizedUnit === 'litre' || normalizedUnit === 'litres') {
+        return { quantity: quantity * 1000, unit: 'ml' };
+    }
+
+    // Culinary spoon conversions -> convert to c. à soupe
+    if (normalizedUnit === 'c. à café' || normalizedUnit === 'cuil. à café') {
+        return { quantity: quantity / 3, unit: 'c. à soupe' }; // 1 c. à soupe = 3 c. à café
+    }
+
+    // Keep original
+    return { quantity, unit };
+}
+
+/**
+ * Try to convert between weight and volume for liquids (approximation: 1ml ≈ 1g)
+ */
+function tryLiquidConversion(quantity: number, unit: string, targetUnit: string): { quantity: number; unit: string } | null {
+    const u = unit.toLowerCase().trim();
+    const target = targetUnit.toLowerCase().trim();
+
+    const volumeUnits = ['ml', 'l', 'litre', 'litres'];
+    const weightUnits = ['g', 'kg'];
+
+    // Volume to weight (1ml ≈ 1g)
+    if (volumeUnits.includes(u) && weightUnits.includes(target)) {
+        const qtyInMl = u === 'l' || u === 'litre' || u === 'litres' ? quantity * 1000 : quantity;
+        const qtyInG = qtyInMl; // 1:1 conversion for liquids
+        return target === 'kg' ? { quantity: qtyInG / 1000, unit: 'kg' } : { quantity: qtyInG, unit: 'g' };
+    }
+
+    // Weight to volume (1g ≈ 1ml)
+    if (weightUnits.includes(u) && volumeUnits.includes(target)) {
+        const qtyInG = u === 'kg' ? quantity * 1000 : quantity;
+        const qtyInMl = qtyInG; // 1:1 conversion for liquids
+        return target === 'l' || target === 'litre' || target === 'litres'
+            ? { quantity: qtyInMl / 1000, unit: 'l' }
+            : { quantity: qtyInMl, unit: 'ml' };
+    }
+
+    return null;
+}
+
+/**
+ * Merge quantities with different units into a single display
+ */
+function mergeQuantities(quantities: QuantityUnit[]): { quantity: number; unit: string } {
+    if (quantities.length === 0) {
+        return { quantity: 0, unit: '' };
+    }
+
+    if (quantities.length === 1) {
+        return { quantity: quantities[0].quantity, unit: quantities[0].unit };
+    }
+
+    // Group by compatible units
+    const groups: Map<string, { total: number; standardUnit: string; originalUnits: Set<string> }> = new Map();
+
+    for (const qu of quantities) {
+        const converted = convertToStandardUnit(qu.quantity, qu.unit);
+
+        if (!groups.has(converted.unit)) {
+            groups.set(converted.unit, {
+                total: 0,
+                standardUnit: converted.unit,
+                originalUnits: new Set()
+            });
+        }
+
+        const group = groups.get(converted.unit)!;
+        group.total += converted.quantity;
+        group.originalUnits.add(qu.unit);
+    }
+
+    // If we have only one group after conversion, return it
+    if (groups.size === 1) {
+        const [standardUnit, data] = Array.from(groups.entries())[0];
+        return { quantity: data.total, unit: standardUnit };
+    }
+
+    // Try to merge incompatible units (e.g., ml and g for liquids)
+    const groupEntries = Array.from(groups.entries());
+    if (groupEntries.length === 2) {
+        const [unit1, data1] = groupEntries[0];
+        const [unit2, data2] = groupEntries[1];
+
+        // Try liquid conversion: convert unit2 to unit1
+        const converted = tryLiquidConversion(data2.total, unit2, unit1);
+        if (converted) {
+            return { quantity: data1.total + converted.quantity, unit: unit1 };
+        }
+
+        // Try reverse: convert unit1 to unit2
+        const convertedReverse = tryLiquidConversion(data1.total, unit1, unit2);
+        if (convertedReverse) {
+            return { quantity: convertedReverse.quantity + data2.total, unit: unit2 };
+        }
+    }
+
+    // Multiple incompatible units that can't be converted - prefer weight over volume, or highest quantity
+    let bestGroup: { quantity: number; unit: string } = { quantity: 0, unit: '' };
+
+    // Prefer g/kg over ml/l
+    const weightUnits = ['g', 'kg'];
+    for (const [unit, data] of groups.entries()) {
+        if (weightUnits.includes(unit)) {
+            bestGroup = { quantity: data.total, unit };
+            break;
+        }
+    }
+
+    // If no weight units, choose highest quantity
+    if (!bestGroup.unit) {
+        for (const [unit, data] of groups.entries()) {
+            if (data.total > bestGroup.quantity) {
+                bestGroup = { quantity: data.total, unit };
+            }
+        }
+    }
+
+    return bestGroup;
+}
+
+// ============================================================================
 // GENERATE SHOPPING LIST
 // ============================================================================
 
@@ -268,18 +406,20 @@ export async function generateShoppingList(
         const items: ShoppingListItem[] = [];
 
         if (aggregated.size > 0) {
-            // Flatten items with multiple units into separate rows
-            const itemInserts = Array.from(aggregated.values()).flatMap((item) => {
-                // Create one item per unit/quantity combination
-                return item.quantities.map(qu => ({
+            // Merge quantities with unit conversion
+            const itemInserts = Array.from(aggregated.values()).map((item) => {
+                // Merge all quantities into one with smart unit conversion
+                const merged = mergeQuantities(item.quantities);
+
+                return {
                     shopping_list_id: list.id,
                     name: item.name,
-                    quantity: qu.quantity,
-                    unit: qu.unit || null,
+                    quantity: merged.quantity,
+                    unit: merged.unit || null,
                     // Prefix aisle with 'lowstock:' for low-stock items (UI detection)
                     aisle: item.isLowStock ? `lowstock:${item.aisle || 'other'}` : item.aisle,
                     checked: false,
-                }));
+                };
             });
 
             const { data: insertedItems, error: itemsError } = await supabase
