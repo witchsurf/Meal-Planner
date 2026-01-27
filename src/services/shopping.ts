@@ -47,18 +47,6 @@ interface AggregatedItem {
 }
 
 // ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-/**
- * Format quantity to avoid ugly decimals like 1.3333333
- */
-function formatQuantity(qty: number): string {
-    // Round to 2 decimal places and remove trailing zeros
-    return qty.toFixed(2).replace(/\.?0+$/, '');
-}
-
-// ============================================================================
 // GENERATE SHOPPING LIST
 // ============================================================================
 
@@ -125,11 +113,6 @@ export async function generateShoppingList(
             throw new Error(`Failed to fetch planned meals: ${mealsError.message}`);
         }
 
-        console.log('[Shopping] Planned meals fetched:', meals?.length || 0);
-        if (meals && meals.length > 0) {
-            console.log('[Shopping] Sample meal:', JSON.stringify(meals[0], null, 2));
-        }
-
         // -------------------------------------------------------------------------
         // Step 1.5: Fetch current inventory for deduplication
         // -------------------------------------------------------------------------
@@ -158,16 +141,7 @@ export async function generateShoppingList(
 
         for (const meal of meals ?? []) {
             const recipe = meal.recipe as { id: string; base_servings?: number; ingredients: Ingredient[] } | null;
-            if (!recipe) {
-                console.warn('[Shopping] Meal without recipe:', meal);
-                continue;
-            }
-            if (!recipe.ingredients) {
-                console.warn('[Shopping] Recipe without ingredients:', recipe.id);
-                continue;
-            }
-
-            console.log(`[Shopping] Processing recipe with ${recipe.ingredients.length} ingredients`);
+            if (!recipe || !recipe.ingredients) continue;
 
             const plannedServings = meal.servings || 1;
             const baseServings = recipe.base_servings || 4;
@@ -199,8 +173,6 @@ export async function generateShoppingList(
             }
         }
 
-        console.log('[Shopping] Aggregated items before deduction:', aggregated.size);
-
         // -------------------------------------------------------------------------
         // Step 2.1: Deduct current inventory from needed ingredients
         // -------------------------------------------------------------------------
@@ -231,8 +203,6 @@ export async function generateShoppingList(
                 item.quantities = remainingQuantities;
             }
         }
-
-        console.log('[Shopping] Aggregated items after inventory deduction:', aggregated.size);
 
         // -------------------------------------------------------------------------
         // Step 2.5: Add low-stock inventory items to shopping list
@@ -275,9 +245,6 @@ export async function generateShoppingList(
             }
         }
 
-        console.log('[Shopping] Final aggregated items (with low stock):', aggregated.size);
-        console.log('[Shopping] Low stock items added:', lowStockItems.length);
-
         // -------------------------------------------------------------------------
         // Step 3: Create shopping list
         // -------------------------------------------------------------------------
@@ -301,31 +268,18 @@ export async function generateShoppingList(
         const items: ShoppingListItem[] = [];
 
         if (aggregated.size > 0) {
-            const itemInserts = Array.from(aggregated.values()).map((item) => {
-                // Format quantities: if multiple units, combine them
-                let quantityDisplay: number;
-                let unitDisplay: string | null;
-
-                if (item.quantities.length === 1) {
-                    quantityDisplay = item.quantities[0].quantity;
-                    unitDisplay = item.quantities[0].unit || null;
-                } else {
-                    // Multiple units: format as "qty1 unit1 + qty2 unit2 + ..."
-                    quantityDisplay = 0; // Set to 0 when showing combined string
-                    unitDisplay = item.quantities
-                        .map(q => `${formatQuantity(q.quantity)} ${q.unit}`.trim())
-                        .join(' + ');
-                }
-
-                return {
+            // Flatten items with multiple units into separate rows
+            const itemInserts = Array.from(aggregated.values()).flatMap((item) => {
+                // Create one item per unit/quantity combination
+                return item.quantities.map(qu => ({
                     shopping_list_id: list.id,
                     name: item.name,
-                    quantity: quantityDisplay,
-                    unit: unitDisplay,
+                    quantity: qu.quantity,
+                    unit: qu.unit || null,
                     // Prefix aisle with 'lowstock:' for low-stock items (UI detection)
                     aisle: item.isLowStock ? `lowstock:${item.aisle || 'other'}` : item.aisle,
                     checked: false,
-                };
+                }));
             });
 
             const { data: insertedItems, error: itemsError } = await supabase
